@@ -56,6 +56,8 @@ const allowedOrigins = [
   "http://localhost:5174", // optional secondary Vite port
   process.env.URL_REACT,
   process.env.URL_ADMIN, // optional admin URL from env
+  "https://adminsdu-jobquest.vercel.app",
+  "https://sdu-jobquest.vercel.app",
 ]
 
 // ✅ Đặt CORS trước tất cả route & middleware khác
