@@ -3,8 +3,10 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Cấu hình SMTP transporter (ưu tiên ENV, fallback Gmail)
+// Cấu hình SMTP transporter (ưu tiên ENV, fallback Gmail) với pooling + cache để tăng tốc
+let cachedTransporter = null;
 const createTransporter = async () => {
+  if (cachedTransporter) return cachedTransporter;
   const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
   const smtpPort = Number(process.env.SMTP_PORT || 465); // ưu tiên 465 secure
   const smtpSecure = String(process.env.SMTP_SECURE || 'true') === 'true';
@@ -12,6 +14,11 @@ const createTransporter = async () => {
   const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASS || 'your-app-password';
 
   const baseOptions = {
+    pool: true,
+    maxConnections: Number(process.env.SMTP_POOL_MAX_CONN || 3),
+    maxMessages: Number(process.env.SMTP_POOL_MAX_MSG || 100),
+    rateDelta: 1000,
+    rateLimit: Number(process.env.SMTP_RATE_LIMIT || 5),
     host: smtpHost,
     port: smtpPort,
     secure: smtpSecure,
@@ -26,7 +33,8 @@ const createTransporter = async () => {
   let transporter = nodemailer.createTransport(baseOptions);
   try {
     await transporter.verify();
-    return transporter;
+    cachedTransporter = transporter;
+    return cachedTransporter;
   } catch (e) {
     // Fallback: thử cổng 587 (STARTTLS)
     const fallbackOptions = {
@@ -36,9 +44,18 @@ const createTransporter = async () => {
     };
     transporter = nodemailer.createTransport(fallbackOptions);
     await transporter.verify();
-    return transporter;
+    cachedTransporter = transporter;
+    return cachedTransporter;
   }
 };
+
+// Helper: nén HTML tối giản (loại bỏ khoảng trắng dư thừa giữa thẻ)
+const minifyHtml = (html) =>
+  html
+    .replace(/\n+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/>\s+</g, '><')
+    .trim();
 
 // Tạo mã xác thực ngẫu nhiên
 export const generateVerificationCode = () => {
@@ -60,57 +77,53 @@ export const sendVerificationEmail = async (email, verificationCode, type = 'reg
     // Xác định subject và content dựa trên type
     let subject, content;
     if (type === 'password_reset') {
+      // Phiên bản "cũ" nhưng tối ưu: giữ style cơ bản, hạn chế shadow/gradient
       subject = 'Mã xác thực đặt lại mật khẩu - SDU-JobQuest';
       content = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            <h2 style="color: #007bff; margin: 0;">SDU-JobQuest - Đặt lại mật khẩu</h2>
+        <div style="font-family: Arial, sans-serif; max-width:600px;margin:0 auto;padding:20px;background:#fff;">
+          <div style="padding:16px 0;border-bottom:1px solid #eee;margin-bottom:16px;">
+            <h2 style="color:#0d6efd;margin:0;font-size:20px;">SDU-JobQuest - Đặt lại mật khẩu</h2>
           </div>
-          
-          <div style="background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <p>Xin chào,</p>
-            <p>Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản SDU-JobQuest của mình.</p>
-            <p>Mã xác thực của bạn là:</p>
-            <div style="background-color: #e9ecef; padding: 15px; border-radius: 5px; text-align: center; margin: 20px 0;">
-              <h1 style="color: #007bff; margin: 0; font-size: 32px; letter-spacing: 5px;">${verificationCode}</h1>
+          <div>
+            <p style="margin:0 0 8px 0;color:#2c3e50;">Xin chào,</p>
+            <p style="margin:0 0 12px 0;color:#2c3e50;">Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản SDU-JobQuest của mình.</p>
+            <p style="margin:0 0 8px 0;color:#2c3e50;">Mã xác thực của bạn là:</p>
+            <div style="background:#f1f3f5;padding:12px;border-radius:6px;text-align:center;margin:12px 0;">
+              <span style="display:inline-block;color:#0d6efd;font-size:28px;letter-spacing:6px;font-weight:700;">${verificationCode}</span>
             </div>
-            <p>Mã này có hiệu lực trong 15 phút.</p>
-            <p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
+            <p style="margin:0 0 8px 0;color:#2c3e50;">Mã này có hiệu lực trong 15 phút.</p>
+            <p style="margin:0 0 0 0;color:#495057;">Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
           </div>
-          
-          <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 8px; font-size: 12px; color: #6c757d;">
-            <p style="margin: 0;">
-              Email này được gửi tự động từ hệ thống SDU-JobQuest. Vui lòng không trả lời email này.
-            </p>
+          <div style="margin-top:16px;padding:12px;background:#f8f9fa;border-radius:6px;color:#6c757d;font-size:12px;">
+            Email này được gửi tự động từ hệ thống SDU-JobQuest. Vui lòng không trả lời email này.
           </div>
         </div>
       `;
     } else {
       subject = 'Mã xác thực đăng ký - SDU-JobQuest';
       content = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-            <h2 style="color: #007bff; margin: 0;">SDU-JobQuest - Xác thực tài khoản</h2>
+        <div style="font-family: Arial, sans-serif; max-width:600px;margin:0 auto;padding:20px;background:#fff;">
+          <div style="padding:16px 0;border-bottom:1px solid #eee;margin-bottom:16px;">
+            <h2 style="color:#0d6efd;margin:0;font-size:20px;">SDU-JobQuest - Xác thực tài khoản</h2>
           </div>
-          
-          <div style="background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <p>Xin chào,</p>
-            <p>Cảm ơn bạn đã đăng ký tài khoản SDU-JobQuest!</p>
-            <p>Mã xác thực của bạn là:</p>
-            <div style="background-color: #e9ecef; padding: 15px; border-radius: 5px; text-align: center; margin: 20px 0;">
-              <h1 style="color: #007bff; margin: 0; font-size: 32px; letter-spacing: 5px;">${verificationCode}</h1>
+          <div>
+            <p style="margin:0 0 8px 0;color:#2c3e50;">Xin chào,</p>
+            <p style="margin:0 0 12px 0;color:#2c3e50;">Cảm ơn bạn đã đăng ký tài khoản SDU-JobQuest!</p>
+            <p style="margin:0 0 8px 0;color:#2c3e50;">Mã xác thực của bạn là:</p>
+            <div style="background:#f1f3f5;padding:12px;border-radius:6px;text-align:center;margin:12px 0;">
+              <span style="display:inline-block;color:#0d6efd;font-size:28px;letter-spacing:6px;font-weight:700;">${verificationCode}</span>
             </div>
-            <p>Vui lòng nhập mã này để hoàn tất đăng ký tài khoản.</p>
+            <p style="margin:0 0 0 0;color:#495057;">Vui lòng nhập mã này để hoàn tất đăng ký tài khoản.</p>
           </div>
-          
-          <div style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 8px; font-size: 12px; color: #6c757d;">
-            <p style="margin: 0;">
-              Email này được gửi tự động từ hệ thống SDU-JobQuest. Vui lòng không trả lời email này.
-            </p>
+          <div style="margin-top:16px;padding:12px;background:#f8f9fa;border-radius:6px;color:#6c757d;font-size:12px;">
+            Email này được gửi tự động từ hệ thống SDU-JobQuest. Vui lòng không trả lời email này.
           </div>
         </div>
       `;
     }
+
+    // Nén HTML để giảm kích thước và tăng tốc gửi
+    content = minifyHtml(content);
     
     const mailOptions = {
       from: process.env.EMAIL_USER || 'SDU-JobQuest.system@gmail.com',
