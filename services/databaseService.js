@@ -9,8 +9,10 @@ const dbConfig = {
   user: process.env.DB_USER || "sql12803611",
   password: process.env.DB_PASS || "SsJG1MgNt1",
   database: process.env.DB_NAME || "sql12803611",
-  port: process.env.DB_PORT || 3306,
-  charset: "utf8mb4"
+  port: Number(process.env.DB_PORT || 3306),
+  charset: "utf8mb4",
+  connectTimeout: Number(process.env.DB_CONNECT_TIMEOUT || 15000),
+  ssl: String(process.env.DB_SSL || 'false') === 'true' ? { rejectUnauthorized: false } : undefined
 };
 
 // Tạo connection pool
