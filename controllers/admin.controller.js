@@ -911,3 +911,418 @@ export const deleteAdminPost = async (req, res) => {
     });
   }
 };
+
+// ==================== ADMIN QUẢN LÝ CATEGORIES TABLE ====================
+
+// Lấy danh sách categories với phân trang
+export const getAdminCategoriesTable = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = '', type = '' } = req.query;
+    const offset = (page - 1) * limit;
+
+    let whereClause = '';
+    let params = [];
+
+    if (search) {
+      whereClause += ' WHERE (name LIKE ? OR description LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    if (type) {
+      if (whereClause) {
+        whereClause += ' AND type = ?';
+      } else {
+        whereClause = ' WHERE type = ?';
+      }
+      params.push(type);
+    }
+
+    // Đếm tổng số records
+    const countQuery = `SELECT COUNT(*) as total FROM categories${whereClause}`;
+    const countResult = await executeQuery(countQuery, params);
+    const total = countResult[0].total;
+
+    // Lấy dữ liệu với phân trang
+    const dataQuery = `
+      SELECT id, name, slug, description, type, status, sort_order, createdAt, updatedAt
+      FROM categories
+      ${whereClause}
+      ORDER BY sort_order ASC, createdAt DESC
+      LIMIT ? OFFSET ?
+    `;
+    params.push(parseInt(limit), offset);
+    const data = await executeQuery(dataQuery, params);
+
+    res.json({
+      success: true,
+      data: data,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalItems: total,
+        itemsPerPage: parseInt(limit)
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi lấy categories table:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy danh sách categories",
+      error: error.message
+    });
+  }
+};
+
+// Thêm category mới
+export const addAdminCategoryTable = async (req, res) => {
+  try {
+    const { name, slug, description, type = 'post', status = 1, sort_order = 0 } = req.body;
+
+    if (!name || !slug) {
+      return res.status(400).json({
+        success: false,
+        message: "Tên và slug là bắt buộc"
+      });
+    }
+
+    // Kiểm tra slug đã tồn tại chưa
+    const existingCategory = await executeQuery(
+      'SELECT id FROM categories WHERE slug = ?',
+      [slug]
+    );
+
+    if (existingCategory.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Slug đã tồn tại"
+      });
+    }
+
+    // Thêm category mới
+    const result = await executeQuery(
+      `INSERT INTO categories (name, slug, description, type, status, sort_order) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [name, slug, description, type, status, sort_order]
+    );
+
+    res.json({
+      success: true,
+      message: "Thêm category thành công",
+      data: { id: result.insertId }
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi thêm category:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi thêm category",
+      error: error.message
+    });
+  }
+};
+
+// Cập nhật category
+export const updateAdminCategoryTable = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, slug, description, type, status, sort_order } = req.body;
+
+    if (!name || !slug) {
+      return res.status(400).json({
+        success: false,
+        message: "Tên và slug là bắt buộc"
+      });
+    }
+
+    // Kiểm tra slug đã tồn tại chưa (trừ category hiện tại)
+    const existingCategory = await executeQuery(
+      'SELECT id FROM categories WHERE slug = ? AND id != ?',
+      [slug, id]
+    );
+
+    if (existingCategory.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Slug đã tồn tại"
+      });
+    }
+
+    // Cập nhật category
+    await executeQuery(
+      `UPDATE categories 
+       SET name = ?, slug = ?, description = ?, type = ?, status = ?, sort_order = ?
+       WHERE id = ?`,
+      [name, slug, description, type, status, sort_order, id]
+    );
+
+    res.json({
+      success: true,
+      message: "Cập nhật category thành công"
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi cập nhật category:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi cập nhật category",
+      error: error.message
+    });
+  }
+};
+
+// Xóa category
+export const deleteAdminCategoryTable = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Kiểm tra category có tồn tại không
+    const category = await executeQuery(
+      'SELECT id FROM categories WHERE id = ?',
+      [id]
+    );
+
+    if (category.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Category không tồn tại"
+      });
+    }
+
+    // Xóa category (soft delete)
+    await executeQuery(
+      'UPDATE categories SET deletedAt = NOW() WHERE id = ?',
+      [id]
+    );
+
+    res.json({
+      success: true,
+      message: "Xóa category thành công"
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi xóa category:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi xóa category",
+      error: error.message
+    });
+  }
+};
+
+// ==================== ADMIN QUẢN LÝ PAGES TABLE ====================
+
+// Lấy danh sách pages với phân trang
+export const getAdminPages = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = '', status = '' } = req.query;
+    const offset = (page - 1) * limit;
+
+    let whereClause = '';
+    let params = [];
+
+    if (search) {
+      whereClause += ' WHERE (title LIKE ? OR content LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    if (status) {
+      if (whereClause) {
+        whereClause += ' AND status = ?';
+      } else {
+        whereClause = ' WHERE status = ?';
+      }
+      params.push(status);
+    }
+
+    // Đếm tổng số records
+    const countQuery = `SELECT COUNT(*) as total FROM pages${whereClause}`;
+    const countResult = await executeQuery(countQuery, params);
+    const total = countResult[0].total;
+
+    // Lấy dữ liệu với phân trang
+    const dataQuery = `
+      SELECT id, title, slug, content, template, status, meta_title, meta_description, sort_order, createdAt, updatedAt
+      FROM pages
+      ${whereClause}
+      ORDER BY sort_order ASC, createdAt DESC
+      LIMIT ? OFFSET ?
+    `;
+    params.push(parseInt(limit), offset);
+    const data = await executeQuery(dataQuery, params);
+
+    res.json({
+      success: true,
+      data: data,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalItems: total,
+        itemsPerPage: parseInt(limit)
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi lấy pages:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy danh sách pages",
+      error: error.message
+    });
+  }
+};
+
+// Thêm page mới
+export const addAdminPage = async (req, res) => {
+  try {
+    const { 
+      title, 
+      slug, 
+      content, 
+      template = 'default', 
+      status = 'draft', 
+      meta_title, 
+      meta_description, 
+      sort_order = 0 
+    } = req.body;
+
+    if (!title || !slug || !content) {
+      return res.status(400).json({
+        success: false,
+        message: "Tiêu đề, slug và nội dung là bắt buộc"
+      });
+    }
+
+    // Kiểm tra slug đã tồn tại chưa
+    const existingPage = await executeQuery(
+      'SELECT id FROM pages WHERE slug = ?',
+      [slug]
+    );
+
+    if (existingPage.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Slug đã tồn tại"
+      });
+    }
+
+    // Thêm page mới
+    const result = await executeQuery(
+      `INSERT INTO pages (title, slug, content, template, status, meta_title, meta_description, sort_order) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [title, slug, content, template, status, meta_title, meta_description, sort_order]
+    );
+
+    res.json({
+      success: true,
+      message: "Thêm page thành công",
+      data: { id: result.insertId }
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi thêm page:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi thêm page",
+      error: error.message
+    });
+  }
+};
+
+// Cập nhật page
+export const updateAdminPage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      title, 
+      slug, 
+      content, 
+      template, 
+      status, 
+      meta_title, 
+      meta_description, 
+      sort_order 
+    } = req.body;
+
+    if (!title || !slug || !content) {
+      return res.status(400).json({
+        success: false,
+        message: "Tiêu đề, slug và nội dung là bắt buộc"
+      });
+    }
+
+    // Kiểm tra slug đã tồn tại chưa (trừ page hiện tại)
+    const existingPage = await executeQuery(
+      'SELECT id FROM pages WHERE slug = ? AND id != ?',
+      [slug, id]
+    );
+
+    if (existingPage.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Slug đã tồn tại"
+      });
+    }
+
+    // Cập nhật page
+    await executeQuery(
+      `UPDATE pages 
+       SET title = ?, slug = ?, content = ?, template = ?, status = ?, 
+           meta_title = ?, meta_description = ?, sort_order = ?
+       WHERE id = ?`,
+      [title, slug, content, template, status, meta_title, meta_description, sort_order, id]
+    );
+
+    res.json({
+      success: true,
+      message: "Cập nhật page thành công"
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi cập nhật page:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi cập nhật page",
+      error: error.message
+    });
+  }
+};
+
+// Xóa page
+export const deleteAdminPage = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Kiểm tra page có tồn tại không
+    const page = await executeQuery(
+      'SELECT id FROM pages WHERE id = ?',
+      [id]
+    );
+
+    if (page.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Page không tồn tại"
+      });
+    }
+
+    // Xóa page (soft delete)
+    await executeQuery(
+      'UPDATE pages SET deletedAt = NOW() WHERE id = ?',
+      [id]
+    );
+
+    res.json({
+      success: true,
+      message: "Xóa page thành công"
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi xóa page:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi xóa page",
+      error: error.message
+    });
+  }
+};
