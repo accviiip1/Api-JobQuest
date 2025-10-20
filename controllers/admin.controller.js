@@ -40,6 +40,28 @@ export const getStats = async (req, res) => {
       console.log("Error getting job stats:", error.message);
     }
 
+    // Thống kê jobs đã hết hạn
+    let jobExpiredStats = 0;
+    try {
+      const [jobExpiredResult] = await promiseDb.query(
+        "SELECT COUNT(*) as total FROM jobs WHERE status = 0 AND deletedAt IS NULL"
+      );
+      jobExpiredStats = jobExpiredResult[0].total;
+    } catch (error) {
+      console.log("Error getting expired job stats:", error.message);
+    }
+
+    // Thống kê jobs sắp hết hạn (trong 7 ngày tới)
+    let jobExpiringSoonStats = 0;
+    try {
+      const [jobExpiringResult] = await promiseDb.query(
+        "SELECT COUNT(*) as total FROM jobs WHERE status = 1 AND deletedAt IS NULL AND deadline BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY)"
+      );
+      jobExpiringSoonStats = jobExpiringResult[0].total;
+    } catch (error) {
+      console.log("Error getting expiring job stats:", error.message);
+    }
+
     // Thống kê applications
     let applicationStats = 0;
     try {
@@ -191,12 +213,102 @@ export const getStats = async (req, res) => {
       appliesMonthlyResult = [];
     }
 
+    // Thống kê theo ngày (7 ngày gần nhất)
+    let jobsDailyResult = [];
+    try {
+      const [result] = await promiseDb.query(`
+        SELECT 
+          DATE_FORMAT(createdAt, '%Y-%m-%d') as label,
+          COUNT(*) as value
+        FROM jobs 
+        WHERE createdAt >= DATE_SUB(NOW(), INTERVAL 7 DAY) 
+        AND deletedAt IS NULL
+        GROUP BY DATE_FORMAT(createdAt, '%Y-%m-%d')
+        ORDER BY label DESC
+      `);
+      jobsDailyResult = result;
+    } catch (error) {
+      console.log("Error getting jobs daily:", error.message);
+      jobsDailyResult = [];
+    }
+
+    // Thống kê users theo ngày (7 ngày gần nhất)
+    let usersDailyResult = [];
+    try {
+      const [result] = await promiseDb.query(`
+        SELECT 
+          DATE_FORMAT(created_at, '%Y-%m-%d') as label,
+          COUNT(*) as value
+        FROM users 
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) 
+        GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
+        ORDER BY label DESC
+      `);
+      usersDailyResult = result;
+    } catch (error) {
+      console.log("Error getting users daily:", error.message);
+      usersDailyResult = [];
+    }
+
+    // Thống kê companies theo ngày (7 ngày gần nhất)
+    let companiesDailyResult = [];
+    try {
+      const [result] = await promiseDb.query(`
+        SELECT 
+          DATE_FORMAT(created_at, '%Y-%m-%d') as label,
+          COUNT(*) as value
+        FROM companies 
+        WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) 
+        GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
+        ORDER BY label DESC
+      `);
+      companiesDailyResult = result;
+    } catch (error) {
+      console.log("Error getting companies daily:", error.message);
+      companiesDailyResult = [];
+    }
+
+    // Danh sách jobs sắp hết hạn (chi tiết)
+    let expiringJobsList = [];
+    try {
+      const [result] = await promiseDb.query(`
+        SELECT 
+          j.id,
+          j.nameJob,
+          j.deadline,
+          c.nameCompany,
+          DATEDIFF(j.deadline, NOW()) as daysLeft
+        FROM jobs j
+        LEFT JOIN companies c ON j.idCompany = c.id
+        WHERE j.status = 1 
+        AND j.deletedAt IS NULL 
+        AND j.deadline BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY)
+        ORDER BY j.deadline ASC
+        LIMIT 10
+      `);
+      expiringJobsList = result;
+    } catch (error) {
+      console.log("Error getting expiring jobs list:", error.message);
+      expiringJobsList = [];
+    }
+
+    // Tự động cập nhật status jobs đã hết hạn
+    try {
+      await promiseDb.query(
+        "UPDATE jobs SET status = 0 WHERE status = 1 AND deadline < NOW() AND deletedAt IS NULL"
+      );
+    } catch (error) {
+      console.log("Error updating expired jobs:", error.message);
+    }
+
     res.json({
       success: true,
       totals: {
         users: userStats,
         companies: companyStats,
         jobsActive: jobStats,
+        jobsExpired: jobExpiredStats,
+        jobsExpiringSoon: jobExpiringSoonStats,
         applies: applicationStats,
         saves: saveStats,
         follows: followStats,
@@ -237,6 +349,10 @@ export const getStats = async (req, res) => {
       usersMonthly: usersMonthlyResult,
       companiesMonthly: companiesMonthlyResult,
       appliesMonthly: appliesMonthlyResult,
+      jobsDaily: jobsDailyResult,
+      usersDaily: usersDailyResult,
+      companiesDaily: companiesDailyResult,
+      expiringJobsList: expiringJobsList,
     });
   } catch (error) {
     console.error("Error getting stats:", error);

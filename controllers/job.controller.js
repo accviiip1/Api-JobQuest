@@ -294,6 +294,7 @@ export const updateJob =  (req, res) => {
     typeWork,
     education,
     experience,
+    deadline,
     idJob,
   } = req.body;
 
@@ -315,7 +316,7 @@ export const updateJob =  (req, res) => {
       if (!data?.length) return res.status(401).json("Người dùng không hợp lệ !");
 
       const q =
-        "UPDATE jobs as j SET `nameJob`=?,`idField`=?,`idProvince`=?,`desc`=?,`request`=?,`other`=?,`salaryMin`=?,`salaryMax`=?,`sex`=?,`typeWork`=?,`education`=?,`experience`=?  WHERE j.id = ? AND j.idCompany = ?";
+        "UPDATE jobs as j SET `nameJob`=?,`idField`=?,`idProvince`=?,`desc`=?,`request`=?,`other`=?,`salaryMin`=?,`salaryMax`=?,`sex`=?,`typeWork`=?,`education`=?,`experience`=?,`deadline`=?  WHERE j.id = ? AND j.idCompany = ?";
 
       const values = [
         nameJob,
@@ -330,6 +331,7 @@ export const updateJob =  (req, res) => {
         typeWork,
         education,
         experience,
+        deadline,
         idJob,
         companmyInfo.id,
       ];
@@ -425,6 +427,7 @@ export const insertJobByAdmin = (req, res) => {
     typeWork,
     education,
     experience,
+    deadline,
     status = 0, // Mặc định là chờ duyệt
   } = req.body;
 
@@ -442,7 +445,7 @@ export const insertJobByAdmin = (req, res) => {
   if (!token) return res.status(401).json("Not logged in!");
 
   const q =
-    "INSERT INTO jobs (idCompany, idField, idProvince, nameJob, `request`, `desc`, other, salaryMin, salaryMax, sex, typeWork, education, experience, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    "INSERT INTO jobs (idCompany, idField, idProvince, nameJob, `request`, `desc`, other, salaryMin, salaryMax, sex, typeWork, education, experience, deadline, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
   const values = [
     idCompany,
     idField,
@@ -457,6 +460,7 @@ export const insertJobByAdmin = (req, res) => {
     typeWork || "",
     education || "",
     experience || "",
+    deadline || null,
     status,
     moment(Date.now()).format("YYYY-MM-DD HH:mm:ss"),
   ];
@@ -483,6 +487,7 @@ export const updateJobByAdmin = (req, res) => {
     typeWork,
     education,
     experience,
+    deadline,
     status,
   } = req.body;
 
@@ -501,7 +506,7 @@ export const updateJobByAdmin = (req, res) => {
   if (!token) return res.status(401).json("Not logged in!");
 
   const q =
-    "UPDATE jobs SET `idCompany`=?, `idField`=?, `idProvince`=?, `nameJob`=?, `request`=?, `desc`=?, `other`=?, `salaryMin`=?, `salaryMax`=?, `sex`=?, `typeWork`=?, `education`=?, `experience`=?, `status`=? WHERE id = ?";
+    "UPDATE jobs SET `idCompany`=?, `idField`=?, `idProvince`=?, `nameJob`=?, `request`=?, `desc`=?, `other`=?, `salaryMin`=?, `salaryMax`=?, `sex`=?, `typeWork`=?, `education`=?, `experience`=?, `deadline`=?, `status`=? WHERE id = ?";
   const values = [
     idCompany,
     idField,
@@ -516,6 +521,7 @@ export const updateJobByAdmin = (req, res) => {
     typeWork || "",
     education || "",
     experience || "",
+    deadline || null,
     status !== undefined ? status : 0, // Giữ nguyên status hiện tại nếu không được cung cấp
     id,
   ];

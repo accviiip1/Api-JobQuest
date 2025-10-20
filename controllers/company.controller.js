@@ -66,8 +66,15 @@ export const getAllCompany = async (req, res) => {
     let limit = Number(req.query?.limit || 8);
     const sort = req.query?.sort || 'default';
     const search = req.query?.search;
-    const provinces = req.query?.province || [];
-    const scales = req.query?.scale || [];
+    // Chuẩn hóa tham số filter thành mảng
+    const provincesRaw = req.query?.province || [];
+    const scalesRaw = req.query?.scale || [];
+    const provinces = Array.isArray(provincesRaw)
+      ? provincesRaw
+      : (typeof provincesRaw === 'string' && provincesRaw.length ? [provincesRaw] : []);
+    const scales = Array.isArray(scalesRaw)
+      ? scalesRaw
+      : (typeof scalesRaw === 'string' && scalesRaw.length ? [scalesRaw] : []);
     
     if (!Number.isFinite(page) || page < 1) page = 1;
     if (!Number.isFinite(limit) || limit < 1) limit = 8;
@@ -101,7 +108,8 @@ export const getAllCompany = async (req, res) => {
     // Xây dựng query cuối cùng
     let whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     
-    let q = `SELECT c.*, COALESCE(p.name, 'Chưa cập nhật') as province 
+    let q = `SELECT c.*, COALESCE(p.name, 'Chưa cập nhật') as province,
+             (SELECT j.deadline FROM jobs j WHERE j.idCompany = c.id AND j.status = 1 AND j.deletedAt IS NULL ORDER BY j.deadline ASC LIMIT 1) as deadline
              FROM companies c 
              LEFT JOIN provinces p ON c.idProvince = p.id 
              ${whereClause}
@@ -255,6 +263,24 @@ export const testCompanySchema = (req, res) => {
 
     return res.json({ 
       message: "Companies table schema", 
+      schema: data
+    });
+  });
+};
+
+// Test endpoint để kiểm tra cấu trúc bảng jobs
+export const testJobsSchema = (req, res) => {
+  const q = "DESCRIBE jobs";
+  
+  db.query(q, (err, data) => {
+    if (err) {
+      console.error("❌ Jobs Schema error:", err);
+      return res.status(500).json({ error: "Jobs Schema error", details: err.message });
+    }
+    
+
+    return res.json({ 
+      message: "Jobs table schema", 
       schema: data
     });
   });

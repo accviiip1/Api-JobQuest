@@ -11,6 +11,7 @@ import {
   deleteCompanyByAdmin,
   testSimpleCompany,
   testCompanySchema,
+  testJobsSchema,
 } from "../controllers/company.controller.js";
 
 const router = express.Router();
@@ -18,6 +19,7 @@ const router = express.Router();
 router.get("/owner/", getOwnerCompany);
 router.get("/test-simple", testSimpleCompany);
 router.get("/schema", testCompanySchema);
+router.get("/jobs-schema", testJobsSchema);
 router.get("/:id", getCompany);
 router.get("/", getAllCompany);
 router.put("/update", updateCompany);
