@@ -1,7 +1,11 @@
 import jwt from "jsonwebtoken";
 
 export const verifyToken = (req, res, next) => {
-  const token = req.cookies.accessToken;
+  // Lấy token từ cookies hoặc Authorization header
+  const token = req.cookies.accessToken || 
+                (req.headers.authorization && req.headers.authorization.startsWith('Bearer ') 
+                  ? req.headers.authorization.split(' ')[1] 
+                  : null);
 
   if (!token) {
     return res.status(401).json({
@@ -10,7 +14,7 @@ export const verifyToken = (req, res, next) => {
     });
   }
 
-  jwt.verify(token, process.env.MY_SECRET, (err, userInfo) => {
+  jwt.verify(token, process.env.JWT_SECRET || process.env.MY_SECRET, (err, userInfo) => {
     if (err) {
       return res.status(403).json({
         success: false,

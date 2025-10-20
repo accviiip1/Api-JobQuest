@@ -17,6 +17,7 @@ import {
   deleteAdminPost
 } from "../controllers/admin.controller.js";
 import { query } from "../config/connect.js";
+import { verifyToken } from "../middleware/jwt.js";
 
 const router = express.Router();
 

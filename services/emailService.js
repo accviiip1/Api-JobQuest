@@ -150,27 +150,27 @@ export const sendVerificationEmail = async (email, verificationCode, type = 'reg
                       </ul>
                     </div>
                   </div>
-                </div>
-                
+          </div>
+          
                 <!-- CTA Button -->
                 <div style="text-align: center; margin: 24px 0;">
                   <a href="#" style="display: inline-block; background: #667eea; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; font-size: 14px;">
                     Tiếp tục đặt lại mật khẩu
                   </a>
-                </div>
-              </div>
-              
+            </div>
+          </div>
+          
               <!-- Footer -->
               <div style="background: #f7fafc; padding: 20px 30px; border-top: 1px solid #e2e8f0;">
                 <div style="text-align: center; color: #718096; font-size: 12px; line-height: 1.4;">
                   <p style="margin: 0 0 4px;">
                     Email này được gửi tự động từ hệ thống SDU-JobQuest
                   </p>
-                  <p style="margin: 0;">
+            <p style="margin: 0;">
                     Vui lòng không trả lời email này. Nếu cần hỗ trợ, vui lòng liên hệ qua trang web.
-                  </p>
-                </div>
-              </div>
+            </p>
+          </div>
+        </div>
             </div>
           </div>
         </body>
@@ -270,27 +270,27 @@ export const sendVerificationEmail = async (email, verificationCode, type = 'reg
                       <p style="color: #22543d; margin: 0; font-size: 11px; font-weight: 500;">Cập nhật nhanh</p>
                     </div>
                   </div>
-                </div>
-                
+          </div>
+          
                 <!-- CTA Button -->
                 <div style="text-align: center; margin: 24px 0;">
                   <a href="#" style="display: inline-block; background: #48bb78; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; font-size: 14px;">
                     Xác thực tài khoản ngay
                   </a>
-                </div>
-              </div>
-              
+            </div>
+          </div>
+          
               <!-- Footer -->
               <div style="background: #f7fafc; padding: 20px 30px; border-top: 1px solid #e2e8f0;">
                 <div style="text-align: center; color: #718096; font-size: 12px; line-height: 1.4;">
                   <p style="margin: 0 0 4px;">
                     Email này được gửi tự động từ hệ thống SDU-JobQuest
                   </p>
-                  <p style="margin: 0;">
+            <p style="margin: 0;">
                     Vui lòng không trả lời email này. Nếu cần hỗ trợ, vui lòng liên hệ qua trang web.
-                  </p>
-                </div>
-              </div>
+            </p>
+          </div>
+        </div>
             </div>
           </div>
         </body>
@@ -376,15 +376,15 @@ export const sendBulkEmail = async (emails, subject, content) => {
                       <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">SDU-JobQuest</h1>
                       <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 16px; font-weight: 500;">Thông báo từ hệ thống</p>
                     </div>
-                  </div>
-                  
+              </div>
+              
                   <!-- Nội dung chính -->
                   <div style="padding: 40px 30px;">
                     <div style="background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); line-height: 1.6; color: #2c3e50; font-size: 16px;">
-                      ${content.replace(/\n/g, '<br>')}
+                ${content.replace(/\n/g, '<br>')}
                     </div>
-                  </div>
-                  
+              </div>
+              
                   <!-- Footer -->
                   <div style="background: #f8f9fa; padding: 25px 30px; border-top: 1px solid #e9ecef;">
                     <div style="text-align: center; margin-bottom: 20px;">
@@ -398,11 +398,11 @@ export const sendBulkEmail = async (emails, subject, content) => {
                       <p style="margin: 0 0 5px;">
                         Email này được gửi tự động từ hệ thống SDU-JobQuest
                       </p>
-                      <p style="margin: 0;">
+                <p style="margin: 0;">
                         Vui lòng không trả lời email này. Nếu cần hỗ trợ, vui lòng liên hệ qua trang web.
-                      </p>
-                    </div>
-                  </div>
+                </p>
+              </div>
+            </div>
                 </div>
               </div>
             </body>
