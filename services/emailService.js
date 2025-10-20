@@ -11,6 +11,18 @@ const createTransporter = async () => {
   const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER || 'SDU-JobQuest.system@gmail.com';
   const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASS || 'your-app-password';
 
+  // Debug logging
+  const debugMode = process.env.SMTP_DEBUG === 'true';
+  if (debugMode) {
+    console.log('🔧 SMTP DEBUG CONFIG:');
+    console.log('Host:', smtpHost);
+    console.log('Port:', smtpPort);
+    console.log('Secure:', smtpSecure);
+    console.log('User:', smtpUser);
+    console.log('Pass length:', smtpPass ? smtpPass.length : 0);
+    console.log('=====================================');
+  }
+
   const baseOptions = {
     host: smtpHost,
     port: smtpPort,
@@ -19,7 +31,9 @@ const createTransporter = async () => {
     connectionTimeout: 15000,
     greetingTimeout: 10000,
     socketTimeout: 20000,
-    tls: { rejectUnauthorized: false }
+    tls: { rejectUnauthorized: false },
+    debug: debugMode,
+    logger: debugMode
   };
 
   // Thử cấu hình chính trước
@@ -56,6 +70,16 @@ export const sendVerificationEmail = async (email, verificationCode, type = 'reg
     
     // Thử gửi email thực
     const transporter = await createTransporter();
+    
+    // Debug: Log transporter info
+    if (process.env.SMTP_DEBUG === 'true') {
+      console.log('🔧 TRANSPORTER CREATED SUCCESSFULLY');
+      console.log('Transporter options:', {
+        host: transporter.options.host,
+        port: transporter.options.port,
+        secure: transporter.options.secure
+      });
+    }
     
     // Xác định subject và content dựa trên type
     let subject, content;
