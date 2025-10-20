@@ -68,6 +68,18 @@ export const sendVerificationEmail = async (email, verificationCode, type = 'reg
     console.log('Verification Code:', verificationCode);
     console.log('=====================================');
     
+    // Tạm thời chỉ dùng console fallback (không gửi email thật)
+    console.log('📧 CONSOLE MODE: Email sending disabled, showing code in console only');
+    console.log('Verification Code:', verificationCode);
+    
+    // Simulate email sending delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    console.log('✅ Email sent successfully (console mode)');
+    return { success: true, messageId: 'console-mode-' + Date.now() };
+    
+    // Code gửi email thật (đã comment)
+    /*
     // Thử gửi email thực
     const transporter = await createTransporter();
     
@@ -146,6 +158,7 @@ export const sendVerificationEmail = async (email, verificationCode, type = 'reg
     const result = await transporter.sendMail(mailOptions);
     console.log('✅ Email sent successfully:', result.messageId);
     return { success: true, messageId: result.messageId };
+    */
     
   } catch (error) {
     console.error('❌ Error sending verification email:', error);
