@@ -1,5 +1,6 @@
 import { sendBulkEmail } from "../services/emailService.js";
 import { db } from "../config/connect.js";
+import { executeQuery } from "../services/databaseService.js";
 
 // Lấy thống kê tổng quan
 export const getStats = async (req, res) => {
@@ -407,6 +408,506 @@ export const sendBulkEmailToApplicants = async (req, res) => {
       success: false,
       message: "Lỗi server khi gửi email",
       error: error.message,
+    });
+  }
+};
+
+// ==================== ADMIN QUẢN LÝ CATEGORIES (LOOKUP_DATA) ====================
+
+// Lấy danh sách tất cả categories với phân trang
+export const getAdminCategories = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = '', category = '' } = req.query;
+    const offset = (page - 1) * limit;
+
+    let whereClause = '';
+    let params = [];
+
+    if (search) {
+      whereClause += ' WHERE (name LIKE ? OR value LIKE ? OR label LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    if (category) {
+      if (whereClause) {
+        whereClause += ' AND category = ?';
+      } else {
+        whereClause = ' WHERE category = ?';
+      }
+      params.push(category);
+    }
+
+    // Đếm tổng số records
+    const countQuery = `SELECT COUNT(*) as total FROM lookup_data${whereClause}`;
+    const countResult = await executeQuery(countQuery, params);
+    const total = countResult[0].total;
+
+    // Lấy dữ liệu với phân trang
+    const dataQuery = `
+      SELECT id, category, item_id, name, value, label, link, icon, text, created_at, updated_at
+      FROM lookup_data
+      ${whereClause}
+      ORDER BY category ASC, item_id ASC
+      LIMIT ? OFFSET ?
+    `;
+    params.push(parseInt(limit), offset);
+    const data = await executeQuery(dataQuery, params);
+
+    res.json({
+      success: true,
+      data: data,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalItems: total,
+        itemsPerPage: parseInt(limit)
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi lấy categories admin:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy danh sách categories",
+      error: error.message
+    });
+  }
+};
+
+// Thêm category mới
+export const addAdminCategory = async (req, res) => {
+  try {
+    const { category, item_id, name, value, label, link, icon, text } = req.body;
+
+    if (!category || !item_id || !name) {
+      return res.status(400).json({
+        success: false,
+        message: "Category, item_id và name là bắt buộc"
+      });
+    }
+
+    // Kiểm tra trùng lặp
+    const checkQuery = `
+      SELECT id FROM lookup_data 
+      WHERE category = ? AND item_id = ?
+    `;
+    const existing = await executeQuery(checkQuery, [category, item_id]);
+
+    if (existing.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "Item với category và item_id này đã tồn tại"
+      });
+    }
+
+    const insertQuery = `
+      INSERT INTO lookup_data (category, item_id, name, value, label, link, icon, text)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    await executeQuery(insertQuery, [
+      category, item_id, name, value || null, label || null,
+      link || null, icon || null, text || null
+    ]);
+
+    res.status(201).json({
+      success: true,
+      message: "Thêm category thành công"
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi thêm category:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi thêm category",
+      error: error.message
+    });
+  }
+};
+
+// Cập nhật category
+export const updateAdminCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { category, item_id, name, value, label, link, icon, text } = req.body;
+
+    // Kiểm tra tồn tại
+    const checkQuery = `SELECT id FROM lookup_data WHERE id = ?`;
+    const existing = await executeQuery(checkQuery, [id]);
+
+    if (existing.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Category không tồn tại"
+      });
+    }
+
+    const updateQuery = `
+      UPDATE lookup_data 
+      SET category = ?, item_id = ?, name = ?, value = ?, label = ?, 
+          link = ?, icon = ?, text = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `;
+
+    await executeQuery(updateQuery, [
+      category, item_id, name, value || null, label || null,
+      link || null, icon || null, text || null, id
+    ]);
+
+    res.json({
+      success: true,
+      message: "Cập nhật category thành công"
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi cập nhật category:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi cập nhật category",
+      error: error.message
+    });
+  }
+};
+
+// Xóa category
+export const deleteAdminCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const checkQuery = `SELECT id FROM lookup_data WHERE id = ?`;
+    const existing = await executeQuery(checkQuery, [id]);
+
+    if (existing.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Category không tồn tại"
+      });
+    }
+
+    const deleteQuery = `DELETE FROM lookup_data WHERE id = ?`;
+    await executeQuery(deleteQuery, [id]);
+
+    res.json({
+      success: true,
+      message: "Xóa category thành công"
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi xóa category:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi xóa category",
+      error: error.message
+    });
+  }
+};
+
+// ==================== ADMIN QUẢN LÝ MEDIA (PICTURES) ====================
+
+// Lấy danh sách media với phân trang
+export const getAdminMedia = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = '' } = req.query;
+    const offset = (page - 1) * limit;
+
+    let whereClause = '';
+    let params = [];
+
+    if (search) {
+      whereClause = ' WHERE (originalName LIKE ? OR filename LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    // Đếm tổng số records
+    const countQuery = `SELECT COUNT(*) as total FROM pictures${whereClause}`;
+    const countResult = await executeQuery(countQuery, params);
+    const total = countResult[0].total;
+
+    // Lấy dữ liệu với phân trang
+    const dataQuery = `
+      SELECT id, originalName, filename, filePath, fileSize, mimeType, uploadedBy, createdAt
+      FROM pictures
+      ${whereClause}
+      ORDER BY createdAt DESC
+      LIMIT ? OFFSET ?
+    `;
+    params.push(parseInt(limit), offset);
+    const data = await executeQuery(dataQuery, params);
+
+    res.json({
+      success: true,
+      data: data,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalItems: total,
+        itemsPerPage: parseInt(limit)
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi lấy media admin:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy danh sách media",
+      error: error.message
+    });
+  }
+};
+
+// Xóa media
+export const deleteAdminMedia = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Lấy thông tin file trước khi xóa
+    const getFileQuery = `SELECT filePath FROM pictures WHERE id = ?`;
+    const [fileResult] = await executeQuery(getFileQuery, [id]);
+
+    if (fileResult.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "File không tồn tại"
+      });
+    }
+
+    // Xóa record trong database
+    const deleteQuery = `DELETE FROM pictures WHERE id = ?`;
+    await executeQuery(deleteQuery, [id]);
+
+    // TODO: Xóa file vật lý từ server (có thể implement sau)
+    // const filePath = fileResult[0].filePath;
+    // fs.unlinkSync(path.join(__dirname, '..', filePath));
+
+    res.json({
+      success: true,
+      message: "Xóa media thành công"
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi xóa media:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi xóa media",
+      error: error.message
+    });
+  }
+};
+
+// ==================== ADMIN QUẢN LÝ PAGES (POSTS) ====================
+
+// Lấy danh sách posts với phân trang
+export const getAdminPosts = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = '', status = '', category = '' } = req.query;
+    const offset = (page - 1) * limit;
+
+    let whereClause = '';
+    let params = [];
+
+    if (search) {
+      whereClause += ' WHERE (title LIKE ? OR content LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    if (status) {
+      if (whereClause) {
+        whereClause += ' AND status = ?';
+      } else {
+        whereClause = ' WHERE status = ?';
+      }
+      params.push(status);
+    }
+
+    if (category) {
+      if (whereClause) {
+        whereClause += ' AND category = ?';
+      } else {
+        whereClause = ' WHERE category = ?';
+      }
+      params.push(category);
+    }
+
+    // Đếm tổng số records
+    const countQuery = `SELECT COUNT(*) as total FROM posts${whereClause}`;
+    const countResult = await executeQuery(countQuery, params);
+    const total = countResult[0].total;
+
+    // Lấy dữ liệu với phân trang
+    const dataQuery = `
+      SELECT id, title, slug, excerpt, content, featured_image, category, tags, 
+             status, view_count, is_featured, meta_title, meta_description, 
+             author_id, created_at, updated_at
+      FROM posts
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+    params.push(parseInt(limit), offset);
+    const data = await executeQuery(dataQuery, params);
+
+    // Parse JSON tags safely
+    const postsWithParsedTags = data.map(post => {
+      let parsedTags = [];
+      try {
+        if (post.tags && typeof post.tags === 'string') {
+          parsedTags = JSON.parse(post.tags);
+        } else if (Array.isArray(post.tags)) {
+          parsedTags = post.tags;
+        }
+      } catch (e) {
+        parsedTags = [];
+      }
+      return { ...post, tags: parsedTags };
+    });
+
+    res.json({
+      success: true,
+      data: postsWithParsedTags,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalItems: total,
+        itemsPerPage: parseInt(limit)
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi lấy posts admin:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi lấy danh sách posts",
+      error: error.message
+    });
+  }
+};
+
+// Thêm post mới
+export const addAdminPost = async (req, res) => {
+  try {
+    const {
+      title, slug, excerpt, content, featured_image, category, tags,
+      status = 'draft', is_featured = false, meta_title, meta_description, author_id
+    } = req.body;
+
+    if (!title || !content) {
+      return res.status(400).json({
+        success: false,
+        message: "Title và content là bắt buộc"
+      });
+    }
+
+    // Convert tags array to JSON string
+    const tagsJson = Array.isArray(tags) ? JSON.stringify(tags) : tags || '[]';
+
+    const insertQuery = `
+      INSERT INTO posts (title, slug, excerpt, content, featured_image, category, tags,
+                        status, is_featured, meta_title, meta_description, author_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    await executeQuery(insertQuery, [
+      title, slug || null, excerpt || null, content, featured_image || null,
+      category || null, tagsJson, status, is_featured, meta_title || null,
+      meta_description || null, author_id || null
+    ]);
+
+    res.status(201).json({
+      success: true,
+      message: "Thêm post thành công"
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi thêm post:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi thêm post",
+      error: error.message
+    });
+  }
+};
+
+// Cập nhật post
+export const updateAdminPost = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      title, slug, excerpt, content, featured_image, category, tags,
+      status, is_featured, meta_title, meta_description
+    } = req.body;
+
+    // Kiểm tra tồn tại
+    const checkQuery = `SELECT id FROM posts WHERE id = ?`;
+    const existing = await executeQuery(checkQuery, [id]);
+
+    if (existing.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Post không tồn tại"
+      });
+    }
+
+    // Convert tags array to JSON string
+    const tagsJson = Array.isArray(tags) ? JSON.stringify(tags) : tags;
+
+    const updateQuery = `
+      UPDATE posts 
+      SET title = ?, slug = ?, excerpt = ?, content = ?, featured_image = ?, 
+          category = ?, tags = ?, status = ?, is_featured = ?, 
+          meta_title = ?, meta_description = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `;
+
+    await executeQuery(updateQuery, [
+      title, slug || null, excerpt || null, content, featured_image || null,
+      category || null, tagsJson, status, is_featured, meta_title || null,
+      meta_description || null, id
+    ]);
+
+    res.json({
+      success: true,
+      message: "Cập nhật post thành công"
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi cập nhật post:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi cập nhật post",
+      error: error.message
+    });
+  }
+};
+
+// Xóa post
+export const deleteAdminPost = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const checkQuery = `SELECT id FROM posts WHERE id = ?`;
+    const existing = await executeQuery(checkQuery, [id]);
+
+    if (existing.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Post không tồn tại"
+      });
+    }
+
+    const deleteQuery = `DELETE FROM posts WHERE id = ?`;
+    await executeQuery(deleteQuery, [id]);
+
+    res.json({
+      success: true,
+      message: "Xóa post thành công"
+    });
+
+  } catch (error) {
+    console.error("❌ Lỗi xóa post:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi server khi xóa post",
+      error: error.message
     });
   }
 };

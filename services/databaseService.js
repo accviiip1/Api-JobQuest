@@ -5,10 +5,10 @@ dotenv.config();
 
 // Cấu hình kết nối database từ environment variables
 const dbConfig = {
-  host: process.env.DB_HOST || "sql12.freesqldatabase.com",
-  user: process.env.DB_USER || "sql12803611",
-  password: process.env.DB_PASS || "SsJG1MgNt1",
-  database: process.env.DB_NAME || "sql12803611",
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASS || "",
+  database: process.env.DB_NAME || "tuyendungvieclam",
   port: process.env.DB_PORT || 3306,
   charset: "utf8mb4"
 };

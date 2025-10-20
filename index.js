@@ -39,6 +39,13 @@ import checkFile from "./middlewares/chechFile.middleware.js";
 
 dotenv.config(); // ✅ Load biến môi trường ngay đầu
 
+// Silence noisy logs in production
+if (process.env.NODE_ENV === 'production') {
+  const noop = () => {};
+  console.debug = noop;
+  console.log = noop;
+}
+
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -77,27 +84,20 @@ app.use("/cv", express.static(path.join(__dirname, "/fileCv")));
 
 // Custom middleware cho /images để debug
 app.use("/images", (req, res, next) => {
-  console.log('Images request:', req.path);
-  
   // Kiểm tra file trong thư mục images trước
   let filePath = path.join(__dirname, "/images", req.path);
-  console.log('Checking images path:', filePath);
   
   if (fs.existsSync(filePath)) {
-    console.log('Found in images:', filePath);
     res.sendFile(filePath);
     return;
   }
   
   // Nếu không có trong images, kiểm tra uploads/posts
   filePath = path.join(__dirname, "uploads/posts", req.path);
-  console.log('Checking uploads/posts path:', filePath);
   
   if (fs.existsSync(filePath)) {
-    console.log('Found in uploads/posts:', filePath);
     res.sendFile(filePath);
   } else {
-    console.log('File not found:', filePath);
     res.status(404).send('File not found');
   }
 });
@@ -109,12 +109,14 @@ app.use(cookieParser());
 app.use(express.json());
 
 // Debug static file serving
-console.log('Static file serving configured:');
-console.log('Images:', path.join(__dirname, "/images"));
-console.log('CV:', path.join(__dirname, "/fileCv"));
-console.log('Uploads:', path.join(__dirname, "uploads"));
-console.log('Uploads exists:', fs.existsSync(path.join(__dirname, "uploads")));
-console.log('Uploads/posts exists:', fs.existsSync(path.join(__dirname, "uploads/posts")));
+if (process.env.NODE_ENV !== 'production') {
+  console.log('Static file serving configured:');
+  console.log('Images:', path.join(__dirname, "/images"));
+  console.log('CV:', path.join(__dirname, "/fileCv"));
+  console.log('Uploads:', path.join(__dirname, "uploads"));
+  console.log('Uploads exists:', fs.existsSync(path.join(__dirname, "uploads")));
+  console.log('Uploads/posts exists:', fs.existsSync(path.join(__dirname, "uploads/posts")));
+}
 
 // Multer upload image
 const upload = multer({

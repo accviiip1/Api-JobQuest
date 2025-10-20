@@ -1,4 +1,3 @@
-import { db } from '../config/connect.js';
 import { executeQuery } from '../services/databaseService.js';
 
 // Lấy tất cả dữ liệu theo category
