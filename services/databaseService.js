@@ -1,11 +1,15 @@
 import mysql from "mysql2/promise";
+import dotenv from "dotenv";
 
-// Cấu hình kết nối database
+dotenv.config();
+
+// Cấu hình kết nối database từ environment variables
 const dbConfig = {
-  host: "localhost",
-  user: "root",
-  password: "",
-  database: "tuyendungvieclam",
+  host: process.env.DB_HOST || "sql12.freesqldatabase.com",
+  user: process.env.DB_USER || "sql12803611",
+  password: process.env.DB_PASS || "SsJG1MgNt1",
+  database: process.env.DB_NAME || "sql12803611",
+  port: process.env.DB_PORT || 3306,
   charset: "utf8mb4"
 };
 

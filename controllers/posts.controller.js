@@ -150,9 +150,8 @@ export const getAllPosts = async (req, res) => {
         p.meta_description,
         p.created_at,
         p.updated_at,
-        u.name as author_name
+        p.author_id
       FROM posts p
-      LEFT JOIN users u ON p.author_id = u.id
       ${whereClause}
       ORDER BY p.${sortField} ${sortOrder}
       LIMIT ? OFFSET ?
@@ -161,11 +160,25 @@ export const getAllPosts = async (req, res) => {
     params.push(parseInt(limit), offset);
     const posts = await executeQuery(postsQuery, params);
 
-    // Parse JSON tags
-    const postsWithParsedTags = posts.map(post => ({
-      ...post,
-      tags: post.tags ? JSON.parse(post.tags) : []
-    }));
+    // Parse JSON tags safely
+    const postsWithParsedTags = posts.map(post => {
+      let parsedTags = [];
+      try {
+        if (post.tags && typeof post.tags === 'string') {
+          parsedTags = JSON.parse(post.tags);
+        } else if (Array.isArray(post.tags)) {
+          parsedTags = post.tags;
+        }
+      } catch (e) {
+        console.log('Error parsing tags for post', post.id, ':', e.message);
+        parsedTags = [];
+      }
+      
+      return {
+        ...post,
+        tags: parsedTags
+      };
+    });
 
     res.json({
       success: true,
