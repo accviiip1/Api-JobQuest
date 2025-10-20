@@ -24,6 +24,20 @@ const router = express.Router();
 // ==================== DASHBOARD STATS ====================
 router.get("/stats", getStats);
 
+// Test endpoint để debug
+router.get("/test", (req, res) => {
+  res.json({
+    success: true,
+    message: "Admin API hoạt động tốt",
+    timestamp: new Date().toISOString(),
+    data: {
+      posts: "Có thể gọi /api/admin/posts",
+      categories: "Có thể gọi /api/admin/categories",
+      media: "Có thể gọi /api/admin/media"
+    }
+  });
+});
+
 // Gửi email hàng loạt cho ứng viên
 router.post("/send-bulk-email", sendBulkEmailToApplicants);
 
