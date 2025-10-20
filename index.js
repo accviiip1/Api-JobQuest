@@ -32,6 +32,7 @@ import lookupDataRouter from "./routes/lookupData.routes.js";
 import picturesRouter from "./routes/pictures.routes.js";
 import postsRouter from "./routes/posts.routes.js";
 import adminRouter from "./routes/admin.routes.js";
+import publicRouter from "./routes/public.routes.js";
 import verificationRouter from "./routes/verification.routes.js";
 import checkEmail from "./middlewares/checkEmail.middleware.js";
 import checkImage from "./middlewares/checkImage.middleware.js";
@@ -247,7 +248,8 @@ app.use("/api/message", messageRouter);
 app.use("/api/lookup-data", lookupDataRouter);
 app.use("/api/pictures", picturesRouter);
 app.use("/api/posts", postsRouter);
-app.use("/api/admin", adminRouter);
+app.use("/api/admin", adminRouter); // Admin routes
+app.use("/api/public", publicRouter); // Public routes
 
 
 // Test
