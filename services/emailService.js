@@ -3,21 +3,41 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Cấu hình SMTP transporter
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    host: 'smtp.gmail.com',
+// Cấu hình SMTP transporter (ưu tiên ENV, fallback Gmail)
+const createTransporter = async () => {
+  const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const smtpPort = Number(process.env.SMTP_PORT || 465); // ưu tiên 465 secure
+  const smtpSecure = String(process.env.SMTP_SECURE || 'true') === 'true';
+  const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER || 'SDU-JobQuest.system@gmail.com';
+  const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASS || 'your-app-password';
+
+  const baseOptions = {
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure,
+    auth: { user: smtpUser, pass: smtpPass },
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
+    tls: { rejectUnauthorized: false }
+  };
+
+  // Thử cấu hình chính trước
+  let transporter = nodemailer.createTransport(baseOptions);
+  try {
+    await transporter.verify();
+    return transporter;
+  } catch (e) {
+    // Fallback: thử cổng 587 (STARTTLS)
+    const fallbackOptions = {
+      ...baseOptions,
     port: 587,
-    secure: false, // true for 465, false for other ports
-    auth: {
-      user: process.env.EMAIL_USER || 'SDU-JobQuest.system@gmail.com',
-      pass: process.env.EMAIL_PASS || 'your-app-password'
-    },
-    tls: {
-      rejectUnauthorized: false
-    }
-  });
+      secure: false
+    };
+    transporter = nodemailer.createTransport(fallbackOptions);
+    await transporter.verify();
+    return transporter;
+  }
 };
 
 // Tạo mã xác thực ngẫu nhiên
@@ -35,7 +55,7 @@ export const sendVerificationEmail = async (email, verificationCode, type = 'reg
     console.log('=====================================');
     
     // Thử gửi email thực
-    const transporter = createTransporter();
+    const transporter = await createTransporter();
     
     // Xác định subject và content dựa trên type
     let subject, content;
@@ -302,7 +322,7 @@ export const sendPasswordResetEmail = async (email, resetCode) => {
 // Gửi email hàng loạt
 export const sendBulkEmail = async (emails, subject, content) => {
   try {
-    const transporter = createTransporter();
+    const transporter = await createTransporter();
     let sentCount = 0;
     let failedCount = 0;
     const errors = [];

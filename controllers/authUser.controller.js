@@ -45,7 +45,7 @@ export const register = async (req, res) => {
 
     // Kiểm tra mã xác thực
     const [verification] = await promiseDb.query(
-      'SELECT * FROM verification_codes WHERE email = ? AND code = ? AND type = ? AND is_used = FALSE AND expires_at > NOW()',
+      'SELECT * FROM verification_codes WHERE email = ? AND code = ? AND type = ? AND is_used = FALSE AND expires_at > UTC_TIMESTAMP()',
       [email, verificationCode, 'register']
     );
 
@@ -158,13 +158,13 @@ export const forgotPassword = async (req, res) => {
 
     // Tạo mã reset
     const resetCode = generateVerificationCode();
-    const expiresAt = moment().add(15, 'minutes').format('YYYY-MM-DD HH:mm:ss');
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
     // Lưu mã vào database
     console.log('Saving verification code:', { email, resetCode, type: 'reset_password', expiresAt });
     await promiseDb.query(
-      'INSERT INTO verification_codes (email, code, type, expires_at) VALUES (?, ?, ?, ?)',
-      [email, resetCode, 'reset_password', expiresAt]
+      'INSERT INTO verification_codes (email, code, type, expires_at) VALUES (?, ?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 15 MINUTE))',
+      [email, resetCode, 'reset_password']
     );
     console.log('✅ Verification code saved');
 
@@ -219,7 +219,7 @@ export const resetPassword = async (req, res) => {
     // Kiểm tra mã xác thực
     console.log('Checking verification code:', { email, code, type: 'reset_password' });
     const [verification] = await promiseDb.query(
-      'SELECT * FROM verification_codes WHERE email = ? AND code = ? AND LOWER(type) = ? AND is_used = FALSE AND expires_at > NOW()',
+      'SELECT * FROM verification_codes WHERE email = ? AND code = ? AND LOWER(type) = ? AND is_used = FALSE AND expires_at > UTC_TIMESTAMP()',
       [email, code, 'reset_password']
     );
     console.log('Verification result:', verification);
